@@ -1,0 +1,741 @@
+Ha, o‘zingizga tegishli sayt bo‘lsa, professional auditni **“hujjat → scope → mapping → test → risk → fix → retest”** tartibida qilasiz. Asosiy standartlar sifatida **OWASP WSTG**, **OWASP Top 10**, **OWASP ASVS** va **PTES** metodologiyasini oling. OWASP Top 10 web app uchun eng muhim risklar bo‘yicha “awareness standard”, WSTG esa web application va web service testlari uchun amaliy testing guide hisoblanadi. ASVS esa secure development va verification uchun talablar frameworkidir. ([OWASP][1])
+
+## Professional Pentest Roadmap
+
+### 0-bosqich: Legal va scope tayyorlash
+
+Avval test qilinadigan chegarani yozib chiqing:
+
+**Scope:**
+
+* domain: `example.uz`
+* subdomainlar: `api.example.uz`, `admin.example.uz`, `shop.example.uz`
+* IP/serverlar
+* test qilinadigan user rollar: guest, user, moderator, admin
+* test vaqti
+* ruxsat etilgan testlar: manual test, DAST scan, API test
+* taqiqlangan testlar: DoS/DDoS, spam, real payment charge, third-party service abuse
+
+**Natija hujjati:**
+
+* Rules of Engagement
+* Scope document
+* Test credentials
+* Backup va rollback rejasi
+
+Bu professional pentestning eng birinchi sharti. PTES ham pentestni pre-engagement’dan boshlab intelligence gathering, threat modeling, vulnerability analysis, exploitation, post-exploitation va reporting bosqichlariga ajratadi. ([pentest-standard.org][2])
+
+---
+
+### 1-bosqich: Asset inventory va arxitektura tushunish
+
+Bu bosqichda “nima bor?” degan savolga javob topasiz.
+
+Tekshiring:
+
+* domain va subdomainlar
+* frontend framework: React, Vue, Next.js va hokazo
+* backend: PHP/Laravel, Node.js, Django, Java, Go
+* API: REST, GraphQL, WebSocket
+* database: PostgreSQL, MySQL, MongoDB
+* auth: session, JWT, OAuth, SSO
+* file upload joylari
+* payment, email, SMS, cloud storage integratsiyalari
+* admin panel
+* CI/CD pipeline
+* cloud: AWS, GCP, Azure, VPS
+
+**Tools:**
+
+* `amass`, `subfinder`, `assetfinder`
+* `httpx`, `naabu`
+* `whatweb`, `wappalyzer`
+* `nmap`
+* browser DevTools
+
+**Deliverable:**
+
+* asset ro‘yxati
+* texnologiyalar ro‘yxati
+* attack surface map
+
+---
+
+### 2-bosqich: Threat modeling
+
+Bu bosqichda “nimani himoya qilyapmiz va kim hujum qilishi mumkin?” degan savolga javob berasiz.
+
+Model qiling:
+
+* asosiy assetlar: user data, admin panel, payment, tokenlar, fayllar
+* attacker turlari: anonymous, oddiy user, premium user, ichki admin
+* trust boundary: browser ↔ backend ↔ DB ↔ third-party API
+* critical flowlar: login, password reset, checkout, file upload, admin actions
+
+**Checklist:**
+
+* Kim qaysi endpointga kira oladi?
+* User boshqa user ma’lumotini ko‘ra oladimi?
+* Admin endpointlar alohida himoyalanganmi?
+* Sensitive data qayerda saqlanadi?
+* Tokenlar qancha yashaydi?
+* Audit log bormi?
+
+**Deliverable:**
+
+* data flow diagram
+* risk map
+* critical business flows ro‘yxati
+
+---
+
+### 3-bosqich: Baseline security configuration
+
+Bu yerda server, HTTP header, TLS, cookie va deployment sozlamalarini tekshirasiz.
+
+Tekshiring:
+
+* HTTPS majburiymi?
+* TLS eski versiyalar o‘chirilganmi?
+* HSTS bormi?
+* cookie flaglar: `HttpOnly`, `Secure`, `SameSite`
+* security headers:
+
+  * `Content-Security-Policy`
+  * `X-Frame-Options` yoki `frame-ancestors`
+  * `X-Content-Type-Options`
+  * `Referrer-Policy`
+  * `Permissions-Policy`
+* error page’da stack trace chiqmayaptimi?
+* `.env`, backup, log fayllar ochiq emasmi?
+* directory listing yo‘qmi?
+
+**Tools:**
+
+* SSL Labs
+* SecurityHeaders
+* `curl -I`
+* `nmap --script ssl-enum-ciphers`
+* `nikto`
+
+**Deliverable:**
+
+* misconfiguration findings
+* hardening checklist
+
+---
+
+### 4-bosqich: OWASP Top 10 bo‘yicha audit
+
+OWASP Top 10:2021 kategoriyalari bo‘yicha yurish kerak. Bu ro‘yxat web application xavfsizligidagi eng muhim risklarni umumlashtiradi. ([OWASP][1])
+
+#### A01 — Broken Access Control
+
+Bu eng muhim qism. Har bir endpointda authorization tekshiring.
+
+Testlar:
+
+* user A user B profilini ko‘ra oladimi?
+* IDOR: `/orders/123` ni `/orders/124` qilib ko‘rish
+* admin endpointga oddiy user kira oladimi?
+* role o‘zgartirish mumkinmi?
+* hidden UI element backendda ham himoyalanganmi?
+* direct object access bor-yo‘qligi
+
+**Tools:**
+
+* Burp Suite Repeater
+* Autorize extension
+* Postman
+* manual role matrix
+
+---
+
+#### A02 — Cryptographic Failures
+
+Sensitive data noto‘g‘ri saqlanyaptimi yoki uzatilyaptimi?
+
+Tekshiring:
+
+* parollar hash qilinganmi? `bcrypt`, `argon2`, `scrypt`
+* parollar plaintext yoki reversible encryption emasmi?
+* tokenlar URL’da ketmayaptimi?
+* API response’da passport, karta, token, session chiqmayaptimi?
+* backup fayllar shifrlanganmi?
+* TLS sozlamalari to‘g‘rimi?
+
+---
+
+#### A03 — Injection
+
+SQLi, NoSQLi, Command Injection, LDAP Injection, SSTI va boshqalar.
+
+Test qiling:
+
+* search field
+* login form
+* filter/sort/order parametrlari
+* JSON body
+* GraphQL query
+* file name
+* admin import/export
+* webhook endpointlar
+
+**Tools:**
+
+* Burp Suite
+* sqlmap — faqat o‘z saytingizda va ehtiyotkorlik bilan
+* manual payload testing
+* server log monitoring
+
+---
+
+#### A04 — Insecure Design
+
+Bu faqat bug emas, dizayn muammosi.
+
+Misollar:
+
+* password reset token muddati cheksiz
+* SMS/email verification bypass
+* rate limit yo‘q
+* business logic bypass
+* kuponni qayta-qayta ishlatish
+* payment status frontenddan ishonish
+* role flow noto‘g‘ri qurilgan
+
+Bu qismda manual test juda muhim.
+
+---
+
+#### A05 — Security Misconfiguration
+
+Tekshiring:
+
+* debug mode yoqilganmi?
+* default passwordlar
+* open admin panel
+* CORS noto‘g‘ri: `Access-Control-Allow-Origin: *`
+* public S3 bucket yoki storage
+* exposed Swagger/OpenAPI
+* exposed Git directory
+* verbose errors
+
+---
+
+#### A06 — Vulnerable and Outdated Components
+
+Dependency audit qiling.
+
+**Tools:**
+
+* `npm audit`
+* `yarn audit`
+* `pnpm audit`
+* `composer audit`
+* `pip-audit`
+* `safety`
+* `go list -m -u all`
+* GitHub Dependabot
+* Snyk yoki osv-scanner
+
+Tekshiring:
+
+* framework versiyalari
+* CMS/pluginlar
+* Docker image
+* OS packages
+* JS libraries
+* abandoned packages
+
+---
+
+#### A07 — Identification and Authentication Failures
+
+Login va session xavfsizligi.
+
+Tekshiring:
+
+* brute-force protection
+* rate limit
+* MFA kerak bo‘lgan joylar
+* weak password policy
+* password reset token expiry
+* session fixation
+* logoutdan keyin token invalid bo‘ladimi?
+* JWT `alg: none` yoki weak secret yo‘qmi?
+* refresh token rotation bormi?
+* account enumeration: “email mavjud/mavjud emas” oshkor bo‘lmayaptimi?
+
+---
+
+#### A08 — Software and Data Integrity Failures
+
+Supply chain va update xavfsizligi.
+
+Tekshiring:
+
+* CI/CD secretlar
+* unsigned build artifacts
+* third-party scriptlar
+* CDN scriptlarida SRI bormi?
+* webhook signature verification
+* auto-update mexanizmi
+* dependency lockfile ishlatilganmi?
+
+---
+
+#### A09 — Security Logging and Monitoring Failures
+
+Hujum bo‘lsa, bilasizmi?
+
+Log qilinishi kerak:
+
+* failed login
+* password reset
+* admin actions
+* role/permission change
+* payment status change
+* suspicious API activity
+* file upload
+* rate limit trigger
+* access denied events
+
+Tekshiring:
+
+* loglarda password/token chiqmayaptimi?
+* alerting bormi?
+* admin harakatlari audit trail’da bormi?
+* incident response jarayoni bormi?
+
+---
+
+#### A10 — Server-Side Request Forgery
+
+SSRF ayniqsa URL fetch, webhook, image import, PDF generator, file import joylarida chiqadi.
+
+Tekshiring:
+
+* backend user bergan URL’ni chaqiradimi?
+* internal IP bloklanganmi?
+* cloud metadata endpointga chiqish mumkinmi?
+* redirect orqali bypass bormi?
+* DNS rebindingga himoya bormi?
+
+---
+
+### 5-bosqich: OWASP WSTG bo‘yicha chuqur test
+
+OWASP WSTG professional web application testing uchun eng to‘liq guide’lardan biri. OWASP sahifasida WSTG web application va web service security testing uchun asosiy resource deb ko‘rsatilgan. ([OWASP][3])
+
+WSTG bo‘yicha test bloklari:
+
+1. Information Gathering
+2. Configuration and Deployment Management Testing
+3. Identity Management Testing
+4. Authentication Testing
+5. Authorization Testing
+6. Session Management Testing
+7. Input Validation Testing
+8. Error Handling
+9. Cryptography
+10. Business Logic Testing
+11. Client-Side Testing
+12. API Testing
+
+Sizning roadmap’da OWASP Top 10 — “risk category”, WSTG esa “qanday test qilish kerak” degan qo‘llanma bo‘ladi.
+
+---
+
+### 6-bosqich: API security audit
+
+Agar saytda REST, GraphQL yoki mobile API bo‘lsa, alohida tekshiring.
+
+Tekshiring:
+
+* endpoint discovery
+* unauthenticated endpointlar
+* mass assignment
+* excessive data exposure
+* broken object level authorization
+* broken function level authorization
+* rate limit
+* pagination abuse
+* GraphQL introspection
+* GraphQL depth/complexity limit
+* file upload API
+* webhook verification
+
+**Tools:**
+
+* Postman
+* Burp Suite
+* Insomnia
+* GraphQL Voyager
+* InQL
+* Schemathesis
+* Kiterunner
+
+---
+
+### 7-bosqich: Business logic testing
+
+Bu scanner topa olmaydigan joy.
+
+Misollar:
+
+* savat narxini clientdan o‘zgartirish
+* kuponni qayta ishlatish
+* payment callback spoofing
+* order statusni qo‘lda o‘zgartirish
+* negative quantity
+* refund abuse
+* referral abuse
+* balance top-up bypass
+* subscription expiry bypass
+* email verification bypass
+
+Bu bosqichda real user flowlarni chizing va har bir bosqichda “nima bo‘lsa bypass bo‘ladi?” deb tekshiring.
+
+---
+
+### 8-bosqich: Auth, session va access matrix
+
+Professional auditda alohida jadval qiling:
+
+| Endpoint          | Guest |     User | Manager |      Admin |
+| ----------------- | ----: | -------: | ------: | ---------: |
+| `/api/profile`    |    No | Own only |      No |        Any |
+| `/api/users/{id}` |    No |       No |    Read | Read/Write |
+| `/api/admin/*`    |    No |       No | Partial |       Full |
+
+Keyin har bir endpointni real tokenlar bilan tekshiring.
+
+**Muhim:** UI’da tugma ko‘rinmasligi yetarli emas. Backend har doim permission tekshirishi kerak.
+
+---
+
+### 9-bosqich: Source code review
+
+Agar kod sizniki bo‘lsa, white-box audit qiling.
+
+Qidiriladigan narsalar:
+
+* hardcoded secrets
+* insecure random
+* raw SQL query
+* disabled CSRF
+* weak JWT secret
+* missing authorization middleware
+* unsafe deserialization
+* insecure file upload
+* path traversal
+* command execution
+* unsafe template rendering
+* debug routes
+* test credentials
+
+**Tools:**
+
+* Semgrep
+* Gitleaks
+* TruffleHog
+* CodeQL
+* SonarQube
+* ESLint security plugins
+* Bandit for Python
+
+---
+
+### 10-bosqich: Infrastructure va cloud audit
+
+Sayt faqat koddan iborat emas.
+
+Tekshiring:
+
+* firewall
+* open ports
+* SSH hardening
+* root login disabled
+* fail2ban yoki rate-limit
+* database public internetga ochiq emasmi?
+* backup access
+* storage bucket permission
+* Docker secrets
+* Kubernetes ingress
+* environment variables
+* CI/CD tokenlar
+* GitHub Actions secrets
+
+**Tools:**
+
+* nmap
+* Lynis
+* ScoutSuite
+* Prowler
+* kube-bench
+* docker-bench-security
+
+---
+
+### 11-bosqich: Vulnerability validation
+
+Scanner topgan narsani darhol “critical” demang. Har bir topilmani validatsiya qiling:
+
+Har bir finding uchun:
+
+* vulnerability nomi
+* affected URL/endpoint
+* affected parameter
+* user role
+* reproduction steps
+* impact
+* evidence: screenshot, request/response
+* CVSS score
+* business risk
+* fix recommendation
+* retest result
+
+Risk format:
+
+* Critical — data breach, RCE, full admin takeover
+* High — account takeover, sensitive data exposure, privilege escalation
+* Medium — limited bypass, stored XSS, weak configuration
+* Low — information disclosure, missing minor header
+* Informational — best practice issue
+
+---
+
+### 12-bosqich: Reporting
+
+Professional report quyidagicha bo‘ladi:
+
+1. Executive Summary
+2. Scope
+3. Methodology
+4. Risk Rating Method
+5. Findings Summary
+6. Detailed Findings
+7. Evidence
+8. Remediation Plan
+9. Retest Results
+10. Appendix: Tools, payload categories, tested endpoints
+
+Har bir finding uchun template:
+
+```text
+Title:
+Severity:
+CVSS:
+Affected Asset:
+Affected Endpoint:
+Description:
+Business Impact:
+Steps to Reproduce:
+Evidence:
+Root Cause:
+Recommendation:
+References:
+Status:
+```
+
+---
+
+### 13-bosqich: Remediation
+
+Fix qilishda prioritet:
+
+1. Critical
+2. High
+3. Internet-facing Medium
+4. Auth/session issues
+5. Misconfiguration
+6. Headers/best practices
+
+Fixdan keyin:
+
+* unit test
+* integration test
+* security regression test
+* retest
+* changelog
+
+---
+
+### 14-bosqich: Retest
+
+Pentest tugagandan keyin eng muhim qism — qayta tekshirish.
+
+Retestda:
+
+* eski vulnerability qayta ishlaydimi?
+* fix boshqa joyni buzmadimi?
+* shu pattern boshqa endpointlarda ham bormi?
+* regression test yozildimi?
+
+---
+
+## 30 kunlik o‘rganish va amaliy roadmap
+
+### 1-hafta: Foundation
+
+O‘rganing:
+
+* HTTP, cookies, sessions
+* DNS, TLS, CORS
+* REST API
+* browser security model
+* Burp Suite basics
+* Linux basics
+* OWASP Top 10
+
+Amaliyot:
+
+* PortSwigger Web Security Academy
+* OWASP Juice Shop
+* DVWA
+* WebGoat
+
+---
+
+### 2-hafta: Recon va mapping
+
+Qiling:
+
+* subdomain enumeration
+* tech fingerprint
+* endpoint mapping
+* robots.txt, sitemap.xml
+* JS file analysis
+* API endpoint topish
+* swagger/openapi qidirish
+
+Output:
+
+* asset inventory
+* endpoint list
+* role matrix
+
+---
+
+### 3-hafta: Manual vulnerability testing
+
+Fokus:
+
+* access control
+* authentication
+* session
+* IDOR
+* injection
+* XSS
+* file upload
+* SSRF
+* CSRF
+* business logic
+
+Output:
+
+* har bir topilma uchun evidence
+* request/response log
+* severity
+
+---
+
+### 4-hafta: Code review, report, retest
+
+Qiling:
+
+* dependency audit
+* secret scanning
+* SAST
+* infra review
+* report yozish
+* fix plan
+* retest
+
+Output:
+
+* professional pentest report
+* remediation roadmap
+* risk dashboard
+
+---
+
+## Minimal professional toolset
+
+Boshlash uchun yetadi:
+
+* Burp Suite Community yoki Pro
+* OWASP ZAP
+* Nmap
+* httpx
+* subfinder
+* ffuf
+* nuclei
+* sqlmap
+* Postman
+* Semgrep
+* Gitleaks
+* TruffleHog
+* Nikto
+* Wappalyzer
+* Docker lab: Juice Shop, DVWA, WebGoat
+
+**Eslatma:** `nuclei`, `sqlmap`, scannerlar va bruteforce toollarni faqat o‘zingizga tegishli yoki yozma ruxsat bor tizimlarda ishlating. Production saytga agressiv scan qilishdan oldin backup, rate limit va monitoring tayyor bo‘lsin.
+
+---
+
+## Siz amal qiladigan eng yaxshi tartib
+
+Mana eng to‘g‘ri ketma-ketlik:
+
+```text
+1. Legal permission va scope
+2. Asset inventory
+3. Architecture review
+4. Threat modeling
+5. Baseline configuration audit
+6. OWASP Top 10 mapping
+7. WSTG manual testing
+8. API security testing
+9. Business logic testing
+10. Source code review
+11. Infrastructure/cloud audit
+12. Vulnerability validation
+13. Risk rating
+14. Report
+15. Remediation
+16. Retest
+17. Security regression checklist
+```
+
+## Standartlar bo‘yicha yo‘l xaritasi
+
+Sizga quyidagicha kombinatsiya tavsiya qilaman:
+
+* **OWASP Top 10** — risklarni kategoriyalash uchun.
+* **OWASP WSTG** — manual web pentest metodologiyasi uchun.
+* **OWASP ASVS** — “saytim qaysi security talablariga javob berishi kerak?” degan savol uchun. ASVS zamonaviy web app va web service security control’larini tekshirishga mo‘ljallangan framework sifatida yuritiladi. ([OWASP][4])
+* **PTES** — butun pentest jarayonini professional fazalarga bo‘lish uchun. ([pentest-standard.org][2])
+
+## Siz uchun amaliy checklist
+
+Boshlashda mana shu tartibda ishlang:
+
+1. Saytingizdagi barcha domain/subdomain/API/admin panellarni yozing.
+2. Har bir user rol uchun test account yarating.
+3. Burp Suite orqali saytni to‘liq map qiling.
+4. Har bir endpoint uchun “kim kira olishi kerak?” jadvalini tuzing.
+5. OWASP Top 10 bo‘yicha test qiling.
+6. WSTG checklist bilan chuqurlashtiring.
+7. API va business logic’ni alohida tekshiring.
+8. Kod bo‘lsa, Semgrep + Gitleaks + dependency audit qiling.
+9. Topilmalarni risk bo‘yicha saralang.
+10. Fix qiling va retest qiling.
+
+Eng professional yondashuv: **OWASP Top 10 bilan boshlang, WSTG bilan test qiling, ASVS bilan talab darajasini o‘lchang, PTES bilan jarayonni boshqaring.**
+
+[1]: https://owasp.org/Top10/2021/?utm_source=chatgpt.com "OWASP Top 10:2021"
+[2]: https://www.pentest-standard.org/index.php/Main_Page?utm_source=chatgpt.com "The Penetration Testing Execution Standard"
+[3]: https://owasp.org/www-project-web-security-testing-guide/?utm_source=chatgpt.com "OWASP Web Security Testing Guide"
+[4]: https://owasp.org/www-project-application-security-verification-standard/?utm_source=chatgpt.com "OWASP Application Security Verification Standard (ASVS)"
